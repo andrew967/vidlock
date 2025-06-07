@@ -36,7 +36,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load("services/uploader/.env")
+	_ = godotenv.Load()
 
 	viper.SetEnvPrefix("VIDLOCK")
 	viper.AutomaticEnv()
