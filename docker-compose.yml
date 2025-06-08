@@ -55,5 +55,19 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  metadata-db:
+    image: postgres:15-alpine
+    container_name: metadata-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: metadb
+    ports:
+      - "5433:5432"
+    volumes:
+      - metadata_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  metadata_data:

@@ -32,6 +32,12 @@ func NewHandler(cfg *config.Config, publisher nats.Publisher) *Handler {
 }
 
 func (h *Handler) Upload(c *gin.Context) {
+	userID, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id missing from context"})
+		return
+	}
+
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
@@ -46,6 +52,7 @@ func (h *Handler) Upload(c *gin.Context) {
 		"Video-ID":  videoID,
 		"File-Name": header.Filename,
 		"Subject":   subject,
+		"User-ID":   userID.(string),
 	})
 
 	idx := 0

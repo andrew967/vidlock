@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -19,8 +20,8 @@ type NATSConfig struct {
 	Stream string
 }
 
-type AppConfig struct {
-	ChunkSize int
+type DBConfig struct {
+	DSN string
 }
 
 type VaultConfig struct {
@@ -35,15 +36,16 @@ type JWTConfig struct {
 type Config struct {
 	HTTP  HTTPConfig
 	NATS  NATSConfig
-	App   AppConfig
+	DB    DBConfig
 	Vault VaultConfig
 	JWT   JWTConfig
 }
 
 func Load() (*Config, error) {
+	viper.SetConfigFile(".env")
 	_ = godotenv.Load()
 
-	viper.SetEnvPrefix("VIDLOCK")
+	viper.SetEnvPrefix("META")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -55,8 +57,8 @@ func Load() (*Config, error) {
 			URL:    viper.GetString("NATS.URL"),
 			Stream: viper.GetString("NATS.STREAM"),
 		},
-		App: AppConfig{
-			ChunkSize: viper.GetInt("APP.CHUNK_SIZE"),
+		DB: DBConfig{
+			DSN: "",
 		},
 		Vault: VaultConfig{
 			Address: viper.GetString("VAULT.ADDRESS"),
@@ -78,33 +80,26 @@ func loadVaultSecrets(cfg *Config) error {
 	}
 	client.SetToken(cfg.Vault.Token)
 
-	secret, err := client.Logical().Read("secret/data/vidlock")
-	if err != nil {
-		return fmt.Errorf("vault read error: %w", err)
+	if secret, err := client.Logical().Read("secret/data/vidlock"); err == nil && secret != nil {
+		if data, ok := secret.Data["data"].(map[string]interface{}); ok {
+			if token, ok := data["nats_token"].(string); ok {
+				cfg.NATS.Token = token
+			}
+		}
 	}
 
-	data, ok := secret.Data["data"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid secret data structure")
+	if secret, err := client.Logical().Read("secret/data/auth-service"); err == nil && secret != nil {
+		if data, ok := secret.Data["data"].(map[string]interface{}); ok {
+			cfg.JWT.SecretKey, _ = data["JWT_SECRET"].(string)
+		}
 	}
 
-	if token, ok := data["nats_token"].(string); ok {
-		cfg.NATS.Token = token
+	if secret, err := client.Logical().Read("secret/data/metadata-service"); err == nil && secret != nil {
+		if data, ok := secret.Data["data"].(map[string]interface{}); ok {
+			cfg.DB.DSN, _ = data["db_dsn"].(string)
+		}
 	}
-
-	secret, err = client.Logical().Read("secret/data/auth-service")
-	if err != nil {
-		return fmt.Errorf("vault read error: %w", err)
-	}
-
-	data, ok = secret.Data["data"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid secret data structure")
-	}
-
-	cfg.JWT = JWTConfig{
-		SecretKey: data["JWT_SECRET"].(string),
-	}
+	log.Println("DSN from Vault:", cfg.DB.DSN)
 
 	return nil
 }

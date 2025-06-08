@@ -13,7 +13,7 @@ import (
 func StartServer(cfg *config.Config, handler *upload.Handler) {
 	r := gin.Default()
 
-	r.POST("/upload", handler.Upload)
+	r.POST("/upload", JWTMiddleware(cfg), handler.Upload)
 
 	addr := fmt.Sprintf(":%d", cfg.HTTP.Port)
 	log.Printf("Starting HTTP server on %s", addr)

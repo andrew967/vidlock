@@ -2,6 +2,7 @@ go 1.23.5
 
 use (
 	./services/auth
+	./services/metadata
 	./services/processor
 	./services/uploader
 )
