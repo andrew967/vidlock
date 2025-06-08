@@ -1,6 +1,7 @@
 go 1.23.5
 
 use (
+	./services/auth
 	./services/processor
 	./services/uploader
 )
